@@ -16,7 +16,7 @@ def get_json(url, datas):
     ses = requests.session()  # 获取session
     ses.headers.update(my_headers)  # 更新
     ses.get(
-        "https://www.lagou.com/jobs/list_go?city=%E5%85%A8%E5%9B%BD&cl=false&fromSearch=true&labelWords=&suginput=")
+        "https://www.lagou.com/jobs/list_python?city=%E5%85%A8%E5%9B%BD&cl=false&fromSearch=true&labelWords=&suginput=")
     content = ses.post(url=url, data=datas)
     result = content.json()
     info = result['content']['positionResult']['result']
@@ -43,8 +43,8 @@ def get_json(url, datas):
 
 def main():
     page = int(input('请输入你要抓取的页码总数：'))
-    # kd = input('请输入你要抓取的职位关键字：')
-    # city = input('请输入你要抓取的城市：')
+    kd = input('请输入你要抓取的职位关键字：')
+    city = input('请输入你要抓取的城市：')
 
     info_result = []
     title = ['岗位id', '城市', '公司全名', '福利待遇', '工作地点', '学历要求', '工作类型', '发布时间', '职位名称', '薪资', '工作年限']
@@ -72,7 +72,7 @@ def main():
             for j, col in enumerate(row):
                 # print(col)
                 worksheet.write(i, j, col)
-        workbook.save('lagouzp1.xls')
+        workbook.save('lagouzp2.xls')
 
 
 if __name__ == '__main__':
