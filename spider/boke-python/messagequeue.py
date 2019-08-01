@@ -3,8 +3,8 @@ import time
 
 class MessageBase:
     def __init__(self, host, port, user, password, virtualhost, exchange, queue):
-        self.exchage_name = 'news'
-        self.queue_name = 'htmls'
+        self.exchage_name = exchange
+        self.queue_name = queue
 
         url = 'amqp://{}:{}@{}:{}/{}'.format(
             user, password, host, port, virtualhost
@@ -38,20 +38,18 @@ class Producer(MessageBase):
 
 class Consumer(MessageBase):
     def consume(self):
-        return self.channel.basic_get(queue=self.queue_name, auto_ack=True)
+        method, props, body = self.channel.basic_get(queue=self.queue_name, auto_ack=True)
+        return body
+
 # 应用? 测试代码
 
 if __name__ == '__main__': #  被导入代码
     qs = ('urls', 'htmls', 'outputs')
-    # for q in qs:
-    #     p = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', qs[0])
-    #     for i in range(40):
-    #         msg = '{}-data-{:02}'.format(q, i)
-    #         p.produce(msg)
-    c1 = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', qs[0])
-    c2 = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', qs[1])
-    c3 = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', qs[2])
+
+    c1 = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', qs[0])
+    c2 = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', qs[1])
+    c3 = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', qs[2])
     for i in range(40):
-        print(c1.consume())
-        print(c2.consume())
-        print(c3.consume())
+        print(c1.produce('hello'))
+        print(c2.produce('my'))
+        print(c3.produce('hi'))

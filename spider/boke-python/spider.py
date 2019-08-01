@@ -1,9 +1,11 @@
+# 分布式爬取博客园
+
 import requests
 from threading import Event
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from queue import Queue
-from test import Producer, Consumer
+from messagequeue import Producer, Consumer
 import simplejson
 from concurrent.futures import ThreadPoolExecutor
 # https://www.cnblogs.com/n/page/100
@@ -30,13 +32,12 @@ def start_urls(start, stop ,step = 1):
 
 def crawl(e:Event):
     # 阻塞 非阻塞
-    p = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'html')
+    p = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'htmls')
     c = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'urls')
     while not e.wait(1):
         # url = urls.get()# 从队列阻塞的取数据
         url = c.consume()
         if url:
-
             with requests.get(url, headers=headers) as response:
 
                 if response.status_code == 200:
@@ -48,54 +49,49 @@ def crawl(e:Event):
 # 解析页面
 def parse(e:Event):
 
-    p = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'html')
-    c = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'urls')
+    p = Producer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'outputs')
+    c = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'htmls')
     while not e.wait(1):
-
         # html = htmls.get()
         html = c.consume()
-
         #分析
         if html:
             soup = BeautifulSoup(html, 'lxml')
             titles = soup.select('h2.news_entry > a')
             # count = 0
             for title in titles:
-                # print(title.get('href', ''), title.text)
-                # count += 1
-                # 存入数据库
-                href = title.get('href', '')
+                href = title.get('href','')
                 if href:
-                    url = BASE_URL + title.get('href', '')
-                    title = title.text
+                    p.produce(simplejson.dumps({
+                        'title': BASE_URL + href,
+                        'url': title.text
+                    }))
+# 持久化
+def persist(path,e:Event): #
+    c = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'outputs')
+    with open(path, 'a+', encoding='utf-8') as f:
 
-                    outputs.put((url, title))
-            # print(count)
-            # print(threading.current_thread())
+        while not e.wait(1):
+            val = c.consume()
+            print(val)
+            if val:
+                try:
+                    print(*val)
+                    val = val.decode() +'\n'
+                    f.write(val)
+                    f.flush()
+                    print(val, '-------------')
+                except Exception as e:
+                    print(e,'**************')
+            else:
+                pass
 
-def persist(e:Event): #
-    c = Consumer('148.70.137.191', 5672, 'mwq', 'mwq', 'test', 'news', 'urls')
 
-    while not e.is_set():
-        val = outputs.get()
-        print(val, '--------')
-        val = {
-            'title': val[1],
-            'url': val[0]
-        }
-        with open('new.txt', 'a+', encoding='utf-8') as f:
-           try:
-                f.write(simplejson.dumps(val) + '\n') #  考虑不能持久化的
-                f.flush()
-           except Exception as e:
-               print(e)
-# start_urls(1, 1)
-# crawl()
 event = Event()
 executor = ThreadPoolExecutor(10) #线程池
 
 executor.submit(start_urls, 1, 1)
-executor.submit(persist, event)
+executor.submit(persist, 'new.txt',event)
 
 for i in range(5):
     executor.submit(crawl, event)
